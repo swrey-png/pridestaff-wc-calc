@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>PrideStaff WC · Quote Calculator</title>
+
+<!-- PWA Meta -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PrideStaff WC">
+<meta name="application-name" content="PrideStaff WC">
+<meta name="description" content="Staffing quote calculator — CA 2026 WC rates, temp and direct hire.">
+
+<!-- Apple Touch Icons -->
+<link rel="apple-touch-icon" href="/icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png">
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-96.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-72.png">
+
+<!-- Apple Splash Screens (iPhone models) -->
+<meta name="apple-touch-startup-image" content="/icons/icon-512.png">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+  body { margin: 0; font-family: 'DM Sans', sans-serif; background: #0f1117; overscroll-behavior: none; }
+  .mono { font-family: 'DM Mono', monospace; }
+
+  /* Safe area for notched phones */
+  .safe-top    { padding-top: env(safe-area-inset-top, 0px); }
+  .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px); }
+
+  @media print {
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+    .no-print { display: none !important; }
+
+    body {
+      background: white !important;
+      font-family: 'DM Sans', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Hide everything except the print card */
+    #root { display: none !important; }
+    #print-quote { display: block !important; position: static !important; }
+
+    #print-quote {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: white;
+      padding: 32px 40px;
+      font-size: 13px;
+      color: #111;
+    }
+
+    .pq-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid #1d4ed8;
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+    }
+    .pq-logo { font-size: 18px; font-weight: 700; color: #1d4ed8; }
+    .pq-sub  { font-size: 11px; color: #666; margin-top: 2px; }
+    .pq-date { font-size: 11px; color: #999; text-align: right; }
+
+    .pq-section { margin-bottom: 16px; }
+    .pq-section-title {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #999;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 4px;
+    }
+
+    .pq-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .pq-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+    .pq-field { margin-bottom: 4px; }
+    .pq-label { font-size: 10px; color: #888; margin-bottom: 2px; }
+    .pq-value { font-size: 14px; font-weight: 600; color: #111; }
+    .pq-value-mono { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 600; color: #111; }
+
+    .pq-result-box {
+      background: #f0f4ff;
+      border: 1.5px solid #1d4ed8;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+    }
+    .pq-bill-rate { font-size: 32px; font-weight: 700; color: #1d4ed8; font-family: 'DM Mono', monospace; }
+    .pq-bill-label { font-size: 11px; color: #666; margin-bottom: 4px; }
+
+    .pq-gm-good { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; display: inline-block; }
+    .pq-gm-warn { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; display: inline-block; }
+    .pq-gm-bad  { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; display: inline-block; }
+
+    .pq-waterfall { width: 100%; border-collapse: collapse; }
+    .pq-waterfall td { padding: 5px 0; font-size: 12px; border-bottom: 1px solid #f0f0f0; }
+    .pq-waterfall td:last-child { text-align: right; font-family: 'DM Mono', monospace; font-weight: 600; }
+    .pq-waterfall .pq-wf-total td { border-top: 2px solid #333; border-bottom: none; font-weight: 700; font-size: 13px; }
+    .pq-waterfall .pq-wf-indent td:first-child { padding-left: 16px; color: #666; }
+
+    .pq-footer {
+      position: absolute;
+      bottom: 24px; left: 40px; right: 40px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #bbb;
+      border-top: 1px solid #eee;
+      padding-top: 8px;
+    }
+
+    .pq-stat-box {
+      background: #f8f9fa;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+    .pq-stat-label { font-size: 10px; color: #888; margin-bottom: 3px; }
+    .pq-stat-value { font-size: 13px; font-weight: 700; color: #111; font-family: 'DM Mono', monospace; }
+  }
+
+  .glass {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(12px);
+  }
+
+  .wc-dropdown {
+    position: absolute;
+    z-index: 100;
+    width: 100%;
+    top: calc(100% + 4px);
+    background: #1e2130;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    max-height: 220px;
+    overflow-y: auto;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  }
+  .wc-dropdown::-webkit-scrollbar { width: 4px; }
+  .wc-dropdown::-webkit-scrollbar-track { background: transparent; }
+  .wc-dropdown::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+  .wc-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.1s;
+  }
+  .wc-item:hover, .wc-item:active { background: rgba(59,130,246,0.15); }
+  .wc-item:last-child { border-bottom: none; }
+
+  .field {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: white;
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-size: 15px;
+    font-family: 'DM Mono', monospace;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+  }
+  .field:focus { border-color: #3b82f6; }
+  .field::placeholder { color: rgba(255,255,255,0.25); }
+
+  .chip {
+    padding: 5px 11px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.6);
+    background: rgba(255,255,255,0.05);
+    white-space: nowrap;
+    -webkit-appearance: none;
+  }
+  .chip:hover { border-color: #3b82f6; color: #93c5fd; }
+  .chip.active { background: #1d4ed8; border-color: #3b82f6; color: white; }
+
+  .wf-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 9px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 13px;
+  }
+  .wf-row:last-child { border-bottom: none; }
+
+  .gm-good { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+  .gm-warn { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+  .gm-bad  { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.35);
+    margin-bottom: 12px;
+  }
+
+  @keyframes popIn {
+    0% { transform: scale(0.95); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .pop { animation: popIn 0.15s ease-out; }
+
+  /* Install banner */
+  .install-banner {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #1e2130;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding: 14px 20px;
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: slideUp 0.3s ease-out;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  /* Update banner */
+  .update-banner {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    background: #1d4ed8;
+    color: white;
+    padding: 10px 20px;
+    padding-top: max(10px, env(safe-area-inset-top));
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="print-quote" style="display:none;"></div>
+
+<script type="text/babel">
+const { useState, useRef, useEffect } = React;
+
+/* ── WC CODES — California 2026 (221 codes) ── */
+const WC_CODES_BY_STATE = {
+  CA: {
+    name: 'California',
+    burden: 0.1809,
+    codes: [
+      {code:'WC2003',name:'Bakery',decimal:0.1003642},
+      {code:'WC2501',name:'Clothing Mfg',decimal:0.1029446},
+      {code:'WC3076',name:'Sheet Metal Prod Mfg',decimal:0.0873264},
+      {code:'WC3146',name:'HARDWARE MFG',decimal:0.0597568},
+      {code:'WC3179',name:'Electric Gas/Light Fixtures Mf',decimal:0.0412865},
+      {code:'WC3400',name:'Metal Stamped Good Mfg',decimal:0.1085129},
+      {code:'WC3612',name:'Pump Mfg',decimal:0.0441385},
+      {code:'WC3632',name:'Machine Shop - NOC',decimal:0.0450892},
+      {code:'WC3634',name:'Valve Mfg',decimal:0.0488919},
+      {code:'WC3681',name:'Printed Circuit Board Mfg',decimal:0.007198},
+      {code:'WC3724',name:'Machinery or Equipment Erection',decimal:0.07035},
+      {code:'WC4034',name:'CONCRETE PRODUCTS MFG',decimal:0.091944},
+      {code:'WC4243',name:'Box Mfg - Folding Paper',decimal:0.0695352},
+      {code:'WC4244',name:'Corrugated/Fiber Board/Contain',decimal:0.074696},
+      {code:'WC4279',name:'Paper Goods Mfg - NOC',decimal:0.0889561},
+      {code:'WC4299',name:'Printing',decimal:0.072523},
+      {code:'WC4410',name:'Rubber Mfg',decimal:0.097648},
+      {code:'WC4611',name:'Drug Medicine or Pharm Prep',decimal:0.0234953},
+      {code:'WC5146',name:'Furniture or Fixtures Installs',decimal:0.0878696},
+      {code:'WC5191',name:'Copy Machine Install/Repair',decimal:0.0366689},
+      {code:'WC6504',name:'Food Sundries Mfg - NOC',decimal:0.1119082},
+      {code:'WC7520',name:'WATERWORKS',decimal:0.0456325},
+      {code:'WC8008',name:'STORES - CLOTHING - RETAIL',decimal:0.0376196},
+      {code:'WC8010',name:'Store - Hardware',decimal:0.0387061},
+      {code:'WC8013',name:'STORES/JEWELERY/WHSLE/RETAIL',decimal:0.0184703},
+      {code:'WC8015',name:'Stores Furniture wholesale',decimal:0.0736095},
+      {code:'WC8017',name:'Stores - Retail',decimal:0.047398},
+      {code:'WC8018',name:'Stores - Wholesale NOC',decimal:0.0896352},
+      {code:'WC8032',name:'Stores Clothing wholesale',decimal:0.0882771},
+      {code:'WC8046',name:'Store Auto Parts',decimal:0.052423},
+      {code:'WC8106',name:'Iron or Steel Merchant',decimal:0.0911291},
+      {code:'WC8107',name:'Machinery Dealer',decimal:0.0407433},
+      {code:'WC8232',name:'Lumberyard New Materials Only',decimal:0.0920798},
+      {code:'WC8291',name:'Storage Warehouse Cold',decimal:0.0816223},
+      {code:'WC8292',name:'Warehouses NOC',decimal:0.0896352},
+      {code:'WC8742',name:'Sales/Collectors/Messengers',decimal:0.0047534},
+      {code:'WC8810',name:'Clerical Office Employees',decimal:0.0032595},
+      {code:'WC8820',name:'Attorneys incl clerical office',decimal:0.0040743},
+      {code:'WC8834',name:'PHYSICIANS—ALL EMPLOYEES',decimal:0.0160257},
+      {code:'WC8868',name:'College - Prof. Ees',decimal:0.0096426},
+      {code:'WC9015',name:'BLDG OPER-INCL JANITORIAL',decimal:0.0657325},
+      {code:'WC9101',name:'College All Other Employees',decimal:0.065325},
+      // ── ADD NEW CODES BELOW THIS LINE ──
+      // Format: {code:'WCXXXX', name:'Job Description', decimal:0.XXXXX},
+      // To add: get the rate from PrideStaff corporate WC sheet, divide by 100 for decimal
+      // Example: 8.50% rate → decimal: 0.08500
+    ]
+  }
+  // Additional states added here as WC files are provided
+  // TX: { name: 'Texas', burden: 0.XXXX, codes: [...] }
+  // AZ: { name: 'Arizona', burden: 0.XXXX, codes: [...] }
+};
+
+const ANNUAL_HOURS = 2080;
+const QUICK_ADD_ON = 5.00;
+
+const fmt2 = n => n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtD = n => '$' + fmt2(n);
+const fmtP = n => n.toFixed(2) + '%';
+
+function gmClass(gm) {
+  if (gm >= 17 && gm <= 21) return 'gm-good';
+  if (gm >= 14 && gm <= 24) return 'gm-warn';
+  return 'gm-bad';
+}
+function gmLabel(gm) {
+  if (gm >= 17 && gm <= 21) return '✓ On Target';
+  if (gm < 14) return '↓ Too Low';
+  if (gm > 24) return '↑ Above Range';
+  return gm < 17 ? '↓ Below' : '↑ Above';
+}
+
+function GMBadge({ gm }) {
+  return (
+    <span className={`mono ${gmClass(gm)}`} style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:11,fontWeight:700,padding:'3px 9px',borderRadius:20}}>
+      {fmtP(gm)} · {gmLabel(gm)}
+    </span>
+  );
+}
+
+function WCSelector({ codes, selectedCode, onSelect }) {
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const filtered = codes.filter(c =>
+    !search || c.code.toLowerCase().includes(search.toLowerCase()) || c.name.toLowerCase().includes(search.toLowerCase())
+  ).slice(0, 40);
+
+  return (
+    <div ref={ref} style={{position:'relative'}}>
+      <label style={{fontSize:11,fontWeight:600,letterSpacing:'0.08em',textTransform:'uppercase',color:'rgba(255,255,255,0.4)',display:'block',marginBottom:6}}>
+        Workers Comp Code
+      </label>
+      <input
+        className="field"
+        value={open ? search : (selectedCode ? `${selectedCode.code} – ${selectedCode.name}` : search)}
+        onChange={e => { setSearch(e.target.value); setOpen(true); if (!e.target.value) onSelect(null); }}
+        onFocus={() => { setSearch(''); setOpen(true); }}
+        placeholder="Search code or job type…"
+      />
+      {open && (
+        <div className="wc-dropdown">
+          {filtered.length === 0 ? (
+            <div style={{padding:'10px 14px',fontSize:12,color:'rgba(255,255,255,0.3)'}}>No codes found</div>
+          ) : filtered.map(c => (
+            <div key={c.code} className="wc-item" onClick={() => { onSelect(c); setSearch(''); setOpen(false); }}>
+              <div>
+                <span style={{fontSize:11,fontWeight:700,color:'#60a5fa',marginRight:8,fontFamily:'DM Mono'}}>{c.code}</span>
+                <span style={{fontSize:12,color:'rgba(255,255,255,0.7)'}}>{c.name}</span>
+              </div>
+              <span style={{fontSize:11,color:'rgba(255,255,255,0.35)',fontFamily:'DM Mono',flexShrink:0,marginLeft:8}}>{(c.decimal*100).toFixed(2)}%</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {selectedCode && !open && (
+        <div style={{display:'flex',alignItems:'center',gap:8,marginTop:6,flexWrap:'wrap'}}>
+          <span style={{background:'rgba(59,130,246,0.2)',border:'1px solid rgba(59,130,246,0.4)',borderRadius:4,padding:'2px 7px',fontSize:11,fontWeight:700,color:'#93c5fd',fontFamily:'DM Mono'}}>{selectedCode.code}</span>
+          <span style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>WC: <span style={{color:'rgba(255,255,255,0.7)',fontFamily:'DM Mono'}}>{(selectedCode.decimal*100).toFixed(3)}%</span></span>
+          <button onClick={() => { onSelect(null); setSearch(''); }} style={{marginLeft:'auto',background:'none',border:'none',color:'rgba(255,255,255,0.25)',cursor:'pointer',fontSize:14,padding:0}}>✕</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const IL = ({children}) => (
+  <label style={{fontSize:11,fontWeight:600,letterSpacing:'0.08em',textTransform:'uppercase',color:'rgba(255,255,255,0.4)',display:'block',marginBottom:6}}>
+    {children}
+  </label>
+);
+
+function TempCalculator({ stateData }) {
+  const [company, setCompany] = useState('');
+  const [position, setPosition] = useState('');
+  const [payRate, setPayRate] = useState('');
+  const [wcCode, setWcCode] = useState(null);
+  const [mode, setMode] = useState('quick');
+  const [addOn, setAddOn] = useState('5.00');
+  const [markup, setMarkup] = useState('1.50');
+  const [targetBill, setTargetBill] = useState('');
+
+  const h  = parseFloat(payRate) || 0;
+  const ao = parseFloat(addOn) || 0;
+  const mu = parseFloat(markup) || 0;
+  const tb = parseFloat(targetBill) || 0;
+  const wc = wcCode ? wcCode.decimal : 0;
+  const BURDEN = stateData.burden;
+
+  const burden        = h * BURDEN;
+  const basic         = h + burden;
+  const wcCost        = h * wc;
+  const fullyBurdened = basic + wcCost;
+
+  const quickBillRate = fullyBurdened + QUICK_ADD_ON;
+  const quickGM       = quickBillRate > 0 ? (QUICK_ADD_ON / quickBillRate) * 100 : 0;
+  const quickMarkup   = h > 0 ? quickBillRate / h : 0;
+
+  const billA  = fullyBurdened + ao;
+  const gmA    = billA > 0 ? (ao / billA) * 100 : 0;
+  const muA    = h > 0 ? billA / h : 0;
+
+  const billB  = h * mu;
+  const gmB    = billB > 0 ? ((billB - fullyBurdened) / billB) * 100 : 0;
+  const addOnB = billB - fullyBurdened;
+
+  const targetGP     = tb - fullyBurdened;
+  const targetGM     = tb > 0 ? (targetGP / tb) * 100 : 0;
+  const targetMarkup = h > 0 && tb > 0 ? tb / h : 0;
+  const targetViable = tb > fullyBurdened;
+
+  const coreReady = h > 0 && wcCode;
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div className="glass" style={{borderRadius:16,padding:20}}>
+        <div className="section-label">Quote Details</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          <div><IL>Company</IL><input className="field" value={company} onChange={e=>setCompany(e.target.value)} placeholder="Company name"/></div>
+          <div><IL>Position</IL><input className="field" value={position} onChange={e=>setPosition(e.target.value)} placeholder="Job title"/></div>
+        </div>
+      </div>
+
+      <div className="glass" style={{borderRadius:16,padding:20}}>
+        <div className="section-label">Role Details</div>
+        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+          <div>
+            <IL>Candidate Pay Rate / hr</IL>
+            <div style={{position:'relative'}}>
+              <span style={{position:'absolute',left:14,top:12,color:'rgba(255,255,255,0.4)',fontSize:14}}>$</span>
+              <input type="number" min="0" step="0.25" inputMode="decimal" className="field" value={payRate} onChange={e=>setPayRate(e.target.value)} placeholder="0.00" style={{paddingLeft:26}}/>
+            </div>
+          </div>
+          <WCSelector codes={stateData.codes} selectedCode={wcCode} onSelect={setWcCode}/>
+        </div>
+      </div>
+
+      <div className="glass" style={{borderRadius:16,padding:20}}>
+        <div className="section-label">Pricing Method</div>
+        <div style={{display:'flex',gap:8,marginBottom:20,flexWrap:'wrap'}}>
+          {[
+            {id:'quick', label:'⚡ Quick Quote', desc:`FC + $${QUICK_ADD_ON.toFixed(2)}`},
+            {id:'advanced', label:'⚙ Advanced', desc:'Add-on or Markup'},
+            {id:'target', label:'🎯 Target Rate', desc:'Work backward'},
+          ].map(m => (
+            <button key={m.id} onClick={()=>setMode(m.id)}
+              style={{
+                flex:1,minWidth:90,padding:'10px 8px',borderRadius:10,cursor:'pointer',
+                border: mode===m.id ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.1)',
+                background: mode===m.id ? 'rgba(29,78,216,0.35)' : 'rgba(255,255,255,0.04)',
+                textAlign:'center',transition:'all 0.15s'
+              }}>
+              <div style={{fontSize:12,fontWeight:600,color: mode===m.id ? '#93c5fd' : 'rgba(255,255,255,0.6)'}}>{m.label}</div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginTop:3}}>{m.desc}</div>
+            </button>
+          ))}
+        </div>
+
+        {mode === 'quick' && (
+          <div style={{background:'rgba(255,255,255,0.03)',borderRadius:12,padding:16,border:'1px solid rgba(255,255,255,0.06)'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+              <span style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>Standard add-on:</span>
+              <span className="mono" style={{fontSize:13,color:'#fbbf24',fontWeight:600}}>${QUICK_ADD_ON.toFixed(2)} / hr</span>
+            </div>
+            {coreReady ? (
+              <div style={{background:'rgba(59,130,246,0.12)',border:'1px solid rgba(59,130,246,0.3)',borderRadius:12,padding:16}}>
+                <div style={{fontSize:11,color:'rgba(255,255,255,0.4)',marginBottom:4,textTransform:'uppercase',letterSpacing:'0.08em'}}>Quick Quote Bill Rate</div>
+                <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:8,flexWrap:'wrap'}}>
+                  <div className="mono pop" style={{fontSize:36,fontWeight:700,color:'white'}}>{fmtD(quickBillRate)}<span style={{fontSize:14,color:'rgba(255,255,255,0.4)',fontWeight:400}}>/hr</span></div>
+                  <GMBadge gm={quickGM}/>
+                </div>
+                <div style={{marginTop:12,display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,textAlign:'center'}}>
+                  {[{l:'Pay Rate',v:fmtD(h)},{l:'Fully Burdened',v:fmtD(fullyBurdened)},{l:'Multiplier',v:quickMarkup.toFixed(4)+'×'}].map(r=>(
+                    <div key={r.l} style={{background:'rgba(255,255,255,0.05)',borderRadius:8,padding:'8px 4px'}}>
+                      <div style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>{r.l}</div>
+                      <div className="mono" style={{fontSize:12,fontWeight:600,color:'rgba(255,255,255,0.85)',marginTop:2}}>{r.v}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : <div style={{textAlign:'center',padding:'16px 0',color:'rgba(255,255,255,0.25)',fontSize:13}}>Enter pay rate and WC code above</div>}
+          </div>
+        )}
+
+        {mode === 'advanced' && (
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+            <div style={{background:'rgba(255,255,255,0.03)',borderRadius:12,padding:16,border:'1px solid rgba(255,255,255,0.06)'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+                <span style={{width:20,height:20,borderRadius:'50%',background:'#1d4ed8',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800,color:'white',flexShrink:0}}>A</span>
+                <span style={{fontSize:12,fontWeight:600,color:'rgba(255,255,255,0.7)'}}>Add-On</span>
+                <span style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>Bill = Fully Burdened + $</span>
+              </div>
+              <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                <div style={{position:'relative',width:100}}>
+                  <span style={{position:'absolute',left:10,top:11,color:'rgba(255,255,255,0.4)',fontSize:12}}>$</span>
+                  <input type="number" min="0" step="0.25" inputMode="decimal" className="field" value={addOn} onChange={e=>setAddOn(e.target.value)} style={{paddingLeft:22}}/>
+                </div>
+                <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                  {[3,4,5,6,7,8,10].map(v=>(
+                    <button key={v} className={`chip ${parseFloat(addOn)===v?'active':''}`} onClick={()=>setAddOn(v.toFixed(2))}>${v}</button>
+                  ))}
+                </div>
+              </div>
+              {coreReady && (
+                <div style={{marginTop:12,display:'flex',justifyContent:'space-between',alignItems:'center',background:'rgba(59,130,246,0.1)',borderRadius:10,padding:'10px 14px'}}>
+                  <div>
+                    <div className="mono" style={{fontSize:26,fontWeight:700,color:'white'}}>{fmtD(billA)}<span style={{fontSize:12,color:'rgba(255,255,255,0.4)',fontWeight:400}}>/hr</span></div>
+                    <div className="mono" style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:2}}>{muA.toFixed(4)}× multiplier</div>
+                  </div>
+                  <GMBadge gm={gmA}/>
+                </div>
+              )}
+            </div>
+            <div style={{background:'rgba(255,255,255,0.03)',borderRadius:12,padding:16,border:'1px solid rgba(255,255,255,0.06)'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+                <span style={{width:20,height:20,borderRadius:'50%',background:'#4f46e5',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800,color:'white',flexShrink:0}}>B</span>
+                <span style={{fontSize:12,fontWeight:600,color:'rgba(255,255,255,0.7)'}}>Markup Multiplier</span>
+                <span style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>Bill = Pay Rate × factor</span>
+              </div>
+              <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                <input type="number" min="1.0" max="3.0" step="0.01" inputMode="decimal" className="field" value={markup} onChange={e=>setMarkup(e.target.value)} style={{width:100}}/>
+                <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                  {[1.40,1.42,1.45,1.50,1.55,1.60].map(v=>(
+                    <button key={v} className={`chip ${parseFloat(markup)===v?'active':''}`} onClick={()=>setMarkup(v.toFixed(2))}>{v.toFixed(2)}×</button>
+                  ))}
+                </div>
+              </div>
+              {coreReady && h > 0 && (
+                <div style={{marginTop:12,display:'flex',justifyContent:'space-between',alignItems:'center',background:'rgba(79,70,229,0.15)',borderRadius:10,padding:'10px 14px'}}>
+                  <div>
+                    <div className="mono" style={{fontSize:26,fontWeight:700,color:'white'}}>{fmtD(billB)}<span style={{fontSize:12,color:'rgba(255,255,255,0.4)',fontWeight:400}}>/hr</span></div>
+                    <div className="mono" style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:2}}>{addOnB>0?`+${fmtD(addOnB)}/hr margin`:<span style={{color:'#f87171'}}>⚠ Below cost</span>}</div>
+                  </div>
+                  <GMBadge gm={gmB}/>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {mode === 'target' && (
+          <div style={{background:'rgba(255,255,255,0.03)',borderRadius:12,padding:16,border:'1px solid rgba(255,255,255,0.06)'}}>
+            <div style={{marginBottom:14}}>
+              <IL>Desired Bill Rate / hr</IL>
+              <div style={{position:'relative'}}>
+                <span style={{position:'absolute',left:14,top:12,color:'rgba(255,255,255,0.4)',fontSize:14}}>$</span>
+                <input type="number" min="0" step="0.25" inputMode="decimal" className="field" value={targetBill} onChange={e=>setTargetBill(e.target.value)} placeholder="e.g. 30.00" style={{paddingLeft:26,fontSize:18}}/>
+              </div>
+            </div>
+            {coreReady && tb > 0 ? (
+              targetViable ? (
+                <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                  <div style={{background:'rgba(16,185,129,0.1)',border:'1px solid rgba(16,185,129,0.25)',borderRadius:12,padding:16}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,flexWrap:'wrap'}}>
+                      <div>
+                        <div style={{fontSize:10,color:'rgba(255,255,255,0.35)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>Gross Margin at {fmtD(tb)}/hr</div>
+                        <div className="mono pop" style={{fontSize:34,fontWeight:700,color:'#34d399'}}>{fmtP(targetGM)}</div>
+                        <div className="mono" style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginTop:2}}>{fmtD(targetGP)}/hr profit</div>
+                      </div>
+                      <GMBadge gm={targetGM}/>
+                    </div>
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+                    {[{l:'Bill Rate',v:fmtD(tb),c:'#93c5fd'},{l:'Fully Burdened',v:fmtD(fullyBurdened),c:'rgba(255,255,255,0.7)'},{l:'Markup',v:targetMarkup.toFixed(4)+'×',c:'#a78bfa'}].map(s=>(
+                      <div key={s.l} style={{background:'rgba(255,255,255,0.04)',borderRadius:10,padding:'10px 8px',textAlign:'center'}}>
+                        <div style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginBottom:4}}>{s.l}</div>
+                        <div className="mono" style={{fontSize:13,fontWeight:700,color:s.c}}>{s.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div style={{background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.3)',borderRadius:12,padding:16,textAlign:'center'}}>
+                  <div style={{fontSize:20,marginBottom:8}}>⚠️</div>
+                  <div style={{color:'#f87171',fontSize:13,fontWeight:600}}>Bill rate below fully burdened cost</div>
+                  <div className="mono" style={{color:'rgba(255,255,255,0.4)',fontSize:12,marginTop:4}}>Minimum to break even: {fmtD(fullyBurdened)}/hr</div>
+                </div>
+              )
+            ) : <div style={{textAlign:'center',padding:'16px 0',color:'rgba(255,255,255,0.25)',fontSize:13}}>{!coreReady?'Enter pay rate and WC code above first':'Enter a desired bill rate'}</div>}
+          </div>
+        )}
+      </div>
+
+      {coreReady && mode !== 'target' && (
+        <div className="glass" style={{borderRadius:16,padding:20}}>
+          <div className="section-label">Cost Breakdown</div>
+          {[
+            {l:'Pay Rate',v:fmtD(h),indent:false,bold:false},
+            {l:`+ Basic Burden (${(BURDEN*100).toFixed(2)}% CA statutory)`,v:`+ ${fmtD(burden)}`,indent:true,bold:false},
+            {l:'= Basic + Hourly',v:fmtD(basic),indent:false,bold:true},
+            {l:`+ Workers Comp (${(wc*100).toFixed(3)}% · ${wcCode?.code})`,v:`+ ${fmtD(wcCost)}`,indent:true,bold:false},
+            {l:'= Fully Burdened',v:fmtD(fullyBurdened),indent:false,bold:true,sep:true},
+          ].map((r,i)=>(
+            <div key={i} className="wf-row" style={{paddingLeft:r.indent?14:0,borderTopWidth:r.sep?'1px':0,borderTopStyle:'solid',borderTopColor:'rgba(255,255,255,0.1)',marginTop:r.sep?6:0}}>
+              <span style={{color:r.bold?'rgba(255,255,255,0.85)':'rgba(255,255,255,0.45)',fontWeight:r.bold?600:400}}>{r.l}</span>
+              <span className="mono" style={{color:r.bold?'white':'rgba(255,255,255,0.55)',fontWeight:r.bold?700:400}}>{r.v}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {coreReady && (
+        <button className="no-print" onClick={() => {
+          const now = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+          const BURDEN = stateData.burden;
+          const burden = h * BURDEN;
+          const basic  = h + burden;
+          const wcCostAmt = h * wc;
+          const burdened  = basic + wcCostAmt;
+          let billRate = 0, gm = 0, markupVal = 0, gpPerHr = 0, methodLabel = '';
+          if (mode === 'quick') {
+            billRate = burdened + QUICK_ADD_ON; gpPerHr = QUICK_ADD_ON;
+            gm = (QUICK_ADD_ON / billRate) * 100; markupVal = billRate / h;
+            methodLabel = 'Quick Quote (FC + $5.00)';
+          } else if (mode === 'advanced') {
+            billRate = burdened + ao; gpPerHr = ao;
+            gm = (ao / billRate) * 100; markupVal = billRate / h;
+            methodLabel = `Add-On Method (+${fmtD(ao)}/hr)`;
+          } else if (mode === 'target' && tb > 0) {
+            billRate = tb; gpPerHr = tb - burdened;
+            gm = ((tb - burdened) / tb) * 100; markupVal = tb / h;
+            methodLabel = 'Target Bill Rate';
+          }
+          const gmBadgeClass = gm >= 17 && gm <= 21 ? 'pq-gm-good' : gm >= 14 && gm <= 24 ? 'pq-gm-warn' : 'pq-gm-bad';
+          const gmLabelText  = gm >= 17 && gm <= 21 ? '✓ On Target' : gm < 14 ? '↓ Too Low' : gm > 24 ? '↑ Above Range' : gm < 17 ? '↓ Below Target' : '↑ Above Target';
+          const el = document.getElementById('print-quote');
+          el.innerHTML = `
+            <div class="pq-header">
+              <div><div class="pq-logo">PrideStaff Walnut Creek</div><div class="pq-sub">Staffing Quote · California 2026 · Internal Use Only</div></div>
+              <div class="pq-date"><div style="font-weight:600;color:#111;font-size:13px;">Quote Date</div><div>${now}</div></div>
+            </div>
+            <div class="pq-section">
+              <div class="pq-section-title">Quote Details</div>
+              <div class="pq-grid-2">
+                <div class="pq-field"><div class="pq-label">Company</div><div class="pq-value">${company || '—'}</div></div>
+                <div class="pq-field"><div class="pq-label">Position</div><div class="pq-value">${position || '—'}</div></div>
+              </div>
+            </div>
+            <div class="pq-result-box">
+              <div class="pq-bill-label">Bill Rate · ${methodLabel}</div>
+              <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                <div class="pq-bill-rate">${fmtD(billRate)}<span style="font-size:16px;color:#666;font-weight:400;">/hr</span></div>
+                <span class="${gmBadgeClass}">${fmtP(gm)} · ${gmLabelText}</span>
+              </div>
+              <div style="margin-top:12px;">
+                <div class="pq-grid-3">
+                  <div class="pq-stat-box"><div class="pq-stat-label">Pay Rate</div><div class="pq-stat-value">${fmtD(h)}</div></div>
+                  <div class="pq-stat-box"><div class="pq-stat-label">Gross Profit / hr</div><div class="pq-stat-value">${fmtD(gpPerHr)}</div></div>
+                  <div class="pq-stat-box"><div class="pq-stat-label">Markup</div><div class="pq-stat-value">${markupVal.toFixed(4)}×</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="pq-section">
+              <div class="pq-section-title">Cost Breakdown</div>
+              <table class="pq-waterfall">
+                <tr><td>Candidate Pay Rate</td><td>${fmtD(h)}</td></tr>
+                <tr class="pq-wf-indent"><td>+ Basic Burden (${(BURDEN*100).toFixed(2)}% CA statutory)</td><td>+ ${fmtD(burden)}</td></tr>
+                <tr><td style="font-weight:600;">= Basic + Hourly</td><td style="font-weight:700;">${fmtD(basic)}</td></tr>
+                <tr class="pq-wf-indent"><td>+ Workers Comp (${(wc*100).toFixed(3)}% · ${wcCode?.code} – ${wcCode?.name})</td><td>+ ${fmtD(wcCostAmt)}</td></tr>
+                <tr class="pq-wf-total"><td>= Fully Burdened Cost</td><td>${fmtD(burdened)}</td></tr>
+                <tr class="pq-wf-indent"><td style="color:#1d4ed8;font-weight:600;">+ Gross Profit</td><td style="color:#1d4ed8;font-weight:700;">+ ${fmtD(gpPerHr)}</td></tr>
+                <tr class="pq-wf-total"><td style="color:#1d4ed8;">= Bill Rate</td><td style="color:#1d4ed8;">${fmtD(billRate)}</td></tr>
+              </table>
+            </div>
+            <div class="pq-footer">
+              <span>PrideStaff Walnut Creek · Confidential · Internal Use Only</span>
+              <span>CA 2026 WC Rates · Basic Burden ${(BURDEN*100).toFixed(2)}%</span>
+            </div>`;
+          setTimeout(() => window.print(), 300);
+        }}
+          style={{width:'100%',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.6)',borderRadius:12,padding:'13px 0',fontSize:13,fontWeight:600,cursor:'pointer',marginBottom:8}}>
+          Print / Save Quote
+        </button>
+      )}
+    </div>
+  );
+}
+
+function DHCalculator() {
+  const [company, setCompany] = useState('');
+  const [position, setPosition] = useState('');
+  const [hourly, setHourly] = useState('');
+  const [dhPct, setDhPct] = useState('20');
+
+  const h = parseFloat(hourly) || 0;
+  const pct = parseFloat(dhPct) || 0;
+  const annual = h * ANNUAL_HOURS;
+  const fee = annual * (pct / 100);
+  const ready = h > 0 && pct > 0;
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div className="glass" style={{borderRadius:16,padding:20}}>
+        <div className="section-label">Quote Details</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          <div><IL>Company</IL><input className="field" value={company} onChange={e=>setCompany(e.target.value)} placeholder="Company name"/></div>
+          <div><IL>Position</IL><input className="field" value={position} onChange={e=>setPosition(e.target.value)} placeholder="Job title"/></div>
+        </div>
+      </div>
+      <div className="glass" style={{borderRadius:16,padding:20}}>
+        <div className="section-label">Compensation</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:20}}>
+          <div>
+            <IL>Hourly Rate</IL>
+            <div style={{position:'relative'}}>
+              <span style={{position:'absolute',left:14,top:12,color:'rgba(255,255,255,0.4)',fontSize:14}}>$</span>
+              <input type="number" min="0" step="0.25" inputMode="decimal" className="field" value={hourly} onChange={e=>setHourly(e.target.value)} placeholder="0.00" style={{paddingLeft:26}}/>
+            </div>
+          </div>
+          <div>
+            <IL>Annual (2,080 hrs)</IL>
+            <div className="mono" style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'11px 14px',fontSize:14,color:h>0?'white':'rgba(255,255,255,0.2)'}}>
+              {h > 0 ? fmtD(annual) : '—'}
+            </div>
+          </div>
+        </div>
+        <IL>Placement Fee %</IL>
+        <div style={{position:'relative',marginBottom:12}}>
+          <input type="number" min="1" max="35" step="0.5" inputMode="decimal" className="field" value={dhPct} onChange={e=>setDhPct(e.target.value)} style={{paddingRight:28}}/>
+          <span style={{position:'absolute',right:14,top:12,color:'rgba(255,255,255,0.4)',fontSize:13}}>%</span>
+        </div>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:20}}>
+          {[10,12,15,18,20,22,25].map(p=>(
+            <button key={p} className={`chip ${parseFloat(dhPct)===p?'active':''}`} onClick={()=>setDhPct(String(p))}>{p}%</button>
+          ))}
+        </div>
+        {ready ? (
+          <div style={{background:'linear-gradient(135deg,#1e40af,#1d4ed8)',borderRadius:14,padding:20}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,flexWrap:'wrap'}}>
+              <div>
+                <div style={{fontSize:10,color:'rgba(255,255,255,0.5)',textTransform:'uppercase',letterSpacing:'0.08em'}}>Direct Hire Placement Fee</div>
+                {(company||position)&&<div style={{fontSize:11,color:'rgba(255,255,255,0.6)',marginTop:3}}>{company}{company&&position?' · ':''}{position}</div>}
+              </div>
+              <div className="mono pop" style={{fontSize:32,fontWeight:700,color:'white'}}>{fmtD(fee)}</div>
+            </div>
+            <div style={{marginTop:16,paddingTop:16,borderTop:'1px solid rgba(255,255,255,0.15)',display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,textAlign:'center'}}>
+              {[{l:'Hourly Rate',v:fmtD(h)},{l:'Annual Salary',v:fmtD(annual)},{l:'Fee %',v:fmtP(pct)}].map(r=>(
+                <div key={r.l}>
+                  <div style={{fontSize:10,color:'rgba(255,255,255,0.4)'}}>{r.l}</div>
+                  <div className="mono" style={{fontSize:13,fontWeight:600,color:'white',marginTop:3}}>{r.v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : <div style={{textAlign:'center',padding:16,color:'rgba(255,255,255,0.2)',fontSize:13}}>Enter hourly rate and fee % to calculate</div>}
+      </div>
+      {ready && (
+        <button className="no-print" onClick={() => {
+          const now = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+          const el = document.getElementById('print-quote');
+          el.innerHTML = `
+            <div class="pq-header">
+              <div><div class="pq-logo">PrideStaff Walnut Creek</div><div class="pq-sub">Direct Hire Quote · Internal Use Only</div></div>
+              <div class="pq-date"><div style="font-weight:600;color:#111;font-size:13px;">Quote Date</div><div>${now}</div></div>
+            </div>
+            <div class="pq-section">
+              <div class="pq-section-title">Quote Details</div>
+              <div class="pq-grid-2">
+                <div class="pq-field"><div class="pq-label">Company</div><div class="pq-value">${company || '—'}</div></div>
+                <div class="pq-field"><div class="pq-label">Position</div><div class="pq-value">${position || '—'}</div></div>
+              </div>
+            </div>
+            <div class="pq-result-box">
+              <div class="pq-bill-label">Direct Hire Placement Fee</div>
+              <div class="pq-bill-rate">${fmtD(fee)}</div>
+              <div style="margin-top:12px;">
+                <div class="pq-grid-3">
+                  <div class="pq-stat-box"><div class="pq-stat-label">Hourly Rate</div><div class="pq-stat-value">${fmtD(h)}</div></div>
+                  <div class="pq-stat-box"><div class="pq-stat-label">Annual Salary</div><div class="pq-stat-value">${fmtD(annual)}</div></div>
+                  <div class="pq-stat-box"><div class="pq-stat-label">Fee %</div><div class="pq-stat-value">${fmtP(pct)}</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="pq-section">
+              <div class="pq-section-title">Calculation</div>
+              <table class="pq-waterfall">
+                <tr><td>Hourly Rate</td><td>${fmtD(h)}</td></tr>
+                <tr><td>× Annual Hours (2,080)</td><td>${fmtD(annual)}</td></tr>
+                <tr class="pq-wf-total"><td>Annual Salary</td><td>${fmtD(annual)}</td></tr>
+                <tr class="pq-wf-indent"><td>× Placement Fee %</td><td>${fmtP(pct)}</td></tr>
+                <tr class="pq-wf-total"><td style="color:#1d4ed8;">= Placement Fee</td><td style="color:#1d4ed8;">${fmtD(fee)}</td></tr>
+              </table>
+            </div>
+            <div class="pq-footer">
+              <span>PrideStaff Walnut Creek · Confidential · Internal Use Only</span>
+              <span>Direct Hire · ${now}</span>
+            </div>`;
+          setTimeout(() => window.print(), 300);
+        }}
+          style={{width:'100%',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.6)',borderRadius:12,padding:'13px 0',fontSize:13,fontWeight:600,cursor:'pointer'}}>
+          Print / Save Quote
+        </button>
+      )}
+    </div>
+  );
+}
+
+function App() {
+  const [tab, setTab] = useState('temp');
+  const [state, setState] = useState('CA');
+  const [showInstall, setShowInstall] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [showUpdate, setShowUpdate] = useState(false);
+
+  const stateKeys = Object.keys(WC_CODES_BY_STATE);
+  const stateData = WC_CODES_BY_STATE[state];
+
+  // Capture Android install prompt
+  useEffect(() => {
+    const handler = e => { e.preventDefault(); setInstallPrompt(e); setShowInstall(true); };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  // Listen for SW update
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              setShowUpdate(true);
+            }
+          });
+        });
+      });
+    }
+  }, []);
+
+  const handleInstall = async () => {
+    if (installPrompt) {
+      installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === 'accepted') setShowInstall(false);
+    }
+  };
+
+  const handleUpdate = () => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(reg => {
+        if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      });
+    }
+    window.location.reload();
+  };
+
+  return (
+    <>
+      {showUpdate && (
+        <div className="update-banner no-print">
+          <span>⬆ Update available</span>
+          <button onClick={handleUpdate} style={{background:'rgba(255,255,255,0.2)',border:'none',color:'white',borderRadius:8,padding:'4px 12px',fontSize:12,fontWeight:700,cursor:'pointer'}}>
+            Refresh
+          </button>
+        </div>
+      )}
+
+      <div style={{minHeight:'100vh',background:'#0f1117',paddingTop: showUpdate ? 44 : 0}}>
+        <div style={{maxWidth:560,margin:'0 auto',padding:'16px 16px 100px'}}>
+
+          {/* Header */}
+          <div style={{marginBottom:16,paddingTop:8}}>
+            <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:4}}>
+              <div style={{width:40,height:40,borderRadius:10,background:'#1d4ed8',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:20}}>📋</div>
+              <div>
+                <div style={{fontSize:17,fontWeight:700,color:'white',lineHeight:1.2}}>PrideStaff WC · Quote Calc</div>
+                <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:2}}>CA 2026 · Basic Burden {(stateData.burden*100).toFixed(2)}% · {stateData.codes.length} WC Codes</div>
+              </div>
+              {/* State selector — shows when multiple states are available */}
+              {stateKeys.length > 1 && (
+                <select value={state} onChange={e=>setState(e.target.value)}
+                  style={{marginLeft:'auto',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',color:'white',borderRadius:8,padding:'6px 10px',fontSize:12,fontFamily:'DM Sans'}}>
+                  {stateKeys.map(k=><option key={k} value={k}>{k}</option>)}
+                </select>
+              )}
+            </div>
+          </div>
+
+          {/* Tab switcher */}
+          <div className="glass no-print" style={{borderRadius:12,padding:'4px',display:'flex',gap:4,marginBottom:16}}>
+            {[{id:'temp',label:'Temp / Temp-to-Hire'},{id:'dh',label:'Direct Hire'}].map(t=>(
+              <button key={t.id} onClick={()=>setTab(t.id)}
+                style={{
+                  flex:1,padding:'11px 0',borderRadius:9,fontSize:13,fontWeight:600,cursor:'pointer',border:'none',transition:'all 0.15s',
+                  background: tab===t.id ? '#1d4ed8' : 'transparent',
+                  color: tab===t.id ? 'white' : 'rgba(255,255,255,0.4)',
+                  boxShadow: tab===t.id ? '0 2px 8px rgba(29,78,216,0.4)' : 'none',
+                }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {tab === 'temp' ? <TempCalculator stateData={stateData}/> : <DHCalculator/>}
+
+          <div className="no-print" style={{textAlign:'center',marginTop:20,fontSize:11,color:'rgba(255,255,255,0.15)'}}>
+            PrideStaff Walnut Creek · Internal Use Only · v1.0
+          </div>
+        </div>
+      </div>
+
+      {/* Android install banner */}
+      {showInstall && (
+        <div className="install-banner no-print">
+          <div style={{width:36,height:36,borderRadius:8,background:'#1d4ed8',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:18}}>📋</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,fontWeight:600,color:'white'}}>Install PrideStaff WC</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.5)',marginTop:1}}>Add to home screen for quick access</div>
+          </div>
+          <button onClick={handleInstall}
+            style={{background:'#1d4ed8',border:'none',color:'white',borderRadius:8,padding:'8px 16px',fontSize:13,fontWeight:700,cursor:'pointer',flexShrink:0}}>
+            Install
+          </button>
+          <button onClick={()=>setShowInstall(false)}
+            style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',cursor:'pointer',fontSize:18,padding:'0 4px',flexShrink:0}}>
+            ✕
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+
+<!-- Service Worker Registration -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.warn('SW registration failed:', err));
+  });
+}
+</script>
+</body>
+</html>
